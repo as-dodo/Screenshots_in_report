@@ -22,13 +22,12 @@ def b(browser):
         driver = webdriver.Chrome(
             service=ChromeService(ChromeDriverManager().install()), options=options
         )
-        driver.get('https://www.saucedemo.com/')
 
     else:
         options = webdriver.FirefoxOptions()
         options.headless = False
         driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
-        driver.get('https://www.saucedemo.com/')
+
     return driver
 
 
