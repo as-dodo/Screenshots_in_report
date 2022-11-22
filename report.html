@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Hello, new name</title>
+    <style>body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  /* do not increase min-width as some may use split screens */
+  min-width: 800px;
+  color: #999;
+}
+
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+h2 {
+  font-size: 16px;
+  color: black;
+}
+
+p {
+  color: black;
+}
+
+a {
+  color: #999;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+#environment td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+}
+#environment tr:nth-child(odd) {
+  background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed,
+.passed .col-result {
+  color: green;
+}
+
+span.skipped,
+span.xfailed,
+span.rerun,
+.skipped .col-result,
+.xfailed .col-result,
+.rerun .col-result {
+  color: orange;
+}
+
+span.error,
+span.failed,
+span.xpassed,
+.error .col-result,
+.failed .col-result,
+.xpassed .col-result {
+  color: red;
+}
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+#results-table {
+  border: 1px solid #e6e6e6;
+  color: #999;
+  font-size: 12px;
+  width: 100%;
+}
+#results-table th,
+#results-table td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+  text-align: left;
+}
+#results-table th {
+  font-weight: bold;
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+.log {
+  background-color: #e6e6e6;
+  border: 1px solid #e6e6e6;
+  color: black;
+  display: block;
+  font-family: "Courier New", Courier, monospace;
+  height: 230px;
+  overflow-y: scroll;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+.log:only-child {
+  height: inherit;
+}
+
+div.image {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.image img {
+  width: 320px;
+}
+
+div.video {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.video video {
+  overflow: hidden;
+  width: 320px;
+  height: 240px;
+}
+
+.collapsed {
+  display: none;
+}
+
+.expander::after {
+  content: " (show details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.collapser::after {
+  content: " (hide details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+  cursor: pointer;
+}
+
+.sort-icon {
+  font-size: 0px;
+  float: left;
+  margin-right: 5px;
+  margin-top: 5px;
+  /*triangle*/
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+.inactive .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #E6E6E6;
+}
+.asc.active .sort-icon {
+  /*finish triangle*/
+  border-bottom: 8px solid #999;
+}
+.desc.active .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    let visibleString = getQueryParameter('visible') || 'all';
+    visibleString = visibleString.toLowerCase();
+    const checkedItems = visibleString.split(',');
+
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++) {
+        filterItems[i].hidden = false;
+
+        if (visibleString != 'all') {
+            filterItems[i].checked = checkedItems.includes(filterItems[i].getAttribute('data-test-result'));
+            filterTable(filterItems[i]);
+        }
+    }
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>Hello, new name</h1>
+    <p>Report generated on 22-Nov-2022 at 22:06:09 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.2.0</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "1.0.0", "pytest": "7.2.0"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>macOS-13.0-arm64-arm-64bit</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"html": "3.2.0", "metadata": "2.0.4"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.10.7</td></tr></table>
+    <h2>Summary</h2>
+    <p>3 tests ran in 2.53 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">0 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">3 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">tests/test_fixture.py::test_title</td>
+          <td class="col-duration">1.85</td>
+          <td class="col-links"><a class="url" href="https://www.saucedemo.com/" target="_blank">URL</a> </td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="image"><a href="screens/screenshot-test_title.png"><img src="screens/screenshot-test_title.png"/></a></div>
+            <div class="log">b = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session=&quot;b93807c42c5583ec7121f754b1547c50&quot;)&gt;<br/><br/>    def test_title(b):<br/>        title_from_site = b.title<br/>&gt;       assert title_from_site == &#x27;Swag Labsss&#x27;<br/><span class="error">E       AssertionError: assert &#x27;Swag Labs&#x27; == &#x27;Swag Labsss&#x27;</span><br/><span class="error">E         - Swag Labsss</span><br/><span class="error">E         ?          --</span><br/><span class="error">E         + Swag Labs</span><br/><br/>tests/test_fixture.py:3: AssertionError<br/> -----------------------------Captured stdout setup------------------------------ <br/>
+---------Test started----------
+
+&lt;class &#x27;selenium.webdriver.chrome.webdriver.WebDriver&#x27;&gt;
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">tests/test_it.py::test_login_page_with_empty_fields</td>
+          <td class="col-duration">0.06</td>
+          <td class="col-links"><a class="url" href="https://www.saucedemo.com/" target="_blank">URL</a> </td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="image"><a href="screens/screenshot-test_login_page_with_empty_fields.png"><img src="screens/screenshot-test_login_page_with_empty_fields.png"/></a></div>
+            <div class="log">b = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session=&quot;b93807c42c5583ec7121f754b1547c50&quot;)&gt;<br/><br/>    def test_login_page_with_empty_fields(b):<br/>        b.find_element(By.ID, &quot;user-name&quot;).clear()<br/>        b.find_element(By.ID, &quot;password&quot;).clear()<br/>    <br/>        b.find_element(By.ID, &quot;login-button&quot;).click()<br/>    <br/>&gt;       assert (<br/>                b.find_element(<br/>                    By.XPATH, &#x27;//h3[text() = &quot;Epic sadface: Username is requir&quot;]&#x27;<br/>                )<br/>                and b.current_url == &quot;https://www.saucedemo.com/&quot;<br/>        )<br/><br/>tests/test_it.py:14: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/>../../Library/Caches/pypoetry/virtualenvs/poetry-test-project-ic9f805P-py3.10/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py:861: in find_element<br/>    return self.execute(Command.FIND_ELEMENT, {&quot;using&quot;: by, &quot;value&quot;: value})[&quot;value&quot;]<br/>../../Library/Caches/pypoetry/virtualenvs/poetry-test-project-ic9f805P-py3.10/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py:444: in execute<br/>    self.error_handler.check_response(response)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x10687dcc0&gt;<br/>response = {&#x27;status&#x27;: 404, &#x27;value&#x27;: &#x27;{&quot;value&quot;:{&quot;error&quot;:&quot;no such element&quot;,&quot;message&quot;:&quot;no such element: Unable to locate element: {\...0001a13da06c _pthread_start + 148\\n17  libsystem_pthread.dylib             0x00000001a13d4e2c thread_start + 8\\n&quot;}}&#x27;}<br/><br/>    def check_response(self, response: Dict[str, Any]) -&gt; None:<br/>        &quot;&quot;&quot;<br/>        Checks that a JSON response from the WebDriver does not have an error.<br/>    <br/>        :Args:<br/>         - response - The JSON response from the WebDriver server as a dictionary<br/>           object.<br/>    <br/>        :Raises: If the response contains an error message.<br/>        &quot;&quot;&quot;<br/>        status = response.get(&quot;status&quot;, None)<br/>        if not status or status == ErrorCode.SUCCESS:<br/>            return<br/>        value = None<br/>        message = response.get(&quot;message&quot;, &quot;&quot;)<br/>        screen: str = response.get(&quot;screen&quot;, &quot;&quot;)<br/>        stacktrace = None<br/>        if isinstance(status, int):<br/>            value_json = response.get(&quot;value&quot;, None)<br/>            if value_json and isinstance(value_json, str):<br/>                import json<br/>    <br/>                try:<br/>                    value = json.loads(value_json)<br/>                    if len(value.keys()) == 1:<br/>                        value = value[&quot;value&quot;]<br/>                    status = value.get(&quot;error&quot;, None)<br/>                    if not status:<br/>                        status = value.get(&quot;status&quot;, ErrorCode.UNKNOWN_ERROR)<br/>                        message = value.get(&quot;value&quot;) or value.get(&quot;message&quot;)<br/>                        if not isinstance(message, str):<br/>                            value = message<br/>                            message = message.get(&quot;message&quot;)<br/>                    else:<br/>                        message = value.get(&quot;message&quot;, None)<br/>                except ValueError:<br/>                    pass<br/>    <br/>        exception_class: Type[WebDriverException]<br/>        if status in ErrorCode.NO_SUCH_ELEMENT:<br/>            exception_class = NoSuchElementException<br/>        elif status in ErrorCode.NO_SUCH_FRAME:<br/>            exception_class = NoSuchFrameException<br/>        elif status in ErrorCode.NO_SUCH_SHADOW_ROOT:<br/>            exception_class = NoSuchShadowRootException<br/>        elif status in ErrorCode.NO_SUCH_WINDOW:<br/>            exception_class = NoSuchWindowException<br/>        elif status in ErrorCode.STALE_ELEMENT_REFERENCE:<br/>            exception_class = StaleElementReferenceException<br/>        elif status in ErrorCode.ELEMENT_NOT_VISIBLE:<br/>            exception_class = ElementNotVisibleException<br/>        elif status in ErrorCode.INVALID_ELEMENT_STATE:<br/>            exception_class = InvalidElementStateException<br/>        elif (<br/>            status in ErrorCode.INVALID_SELECTOR<br/>            or status in ErrorCode.INVALID_XPATH_SELECTOR<br/>            or status in ErrorCode.INVALID_XPATH_SELECTOR_RETURN_TYPER<br/>        ):<br/>            exception_class = InvalidSelectorException<br/>        elif status in ErrorCode.ELEMENT_IS_NOT_SELECTABLE:<br/>            exception_class = ElementNotSelectableException<br/>        elif status in ErrorCode.ELEMENT_NOT_INTERACTABLE:<br/>            exception_class = ElementNotInteractableException<br/>        elif status in ErrorCode.INVALID_COOKIE_DOMAIN:<br/>            exception_class = InvalidCookieDomainException<br/>        elif status in ErrorCode.UNABLE_TO_SET_COOKIE:<br/>            exception_class = UnableToSetCookieException<br/>        elif status in ErrorCode.TIMEOUT:<br/>            exception_class = TimeoutException<br/>        elif status in ErrorCode.SCRIPT_TIMEOUT:<br/>            exception_class = TimeoutException<br/>        elif status in ErrorCode.UNKNOWN_ERROR:<br/>            exception_class = WebDriverException<br/>        elif status in ErrorCode.UNEXPECTED_ALERT_OPEN:<br/>            exception_class = UnexpectedAlertPresentException<br/>        elif status in ErrorCode.NO_ALERT_OPEN:<br/>            exception_class = NoAlertPresentException<br/>        elif status in ErrorCode.IME_NOT_AVAILABLE:<br/>            exception_class = ImeNotAvailableException<br/>        elif status in ErrorCode.IME_ENGINE_ACTIVATION_FAILED:<br/>            exception_class = ImeActivationFailedException<br/>        elif status in ErrorCode.MOVE_TARGET_OUT_OF_BOUNDS:<br/>            exception_class = MoveTargetOutOfBoundsException<br/>        elif status in ErrorCode.JAVASCRIPT_ERROR:<br/>            exception_class = JavascriptException<br/>        elif status in ErrorCode.SESSION_NOT_CREATED:<br/>            exception_class = SessionNotCreatedException<br/>        elif status in ErrorCode.INVALID_ARGUMENT:<br/>            exception_class = InvalidArgumentException<br/>        elif status in ErrorCode.NO_SUCH_COOKIE:<br/>            exception_class = NoSuchCookieException<br/>        elif status in ErrorCode.UNABLE_TO_CAPTURE_SCREEN:<br/>            exception_class = ScreenshotException<br/>        elif status in ErrorCode.ELEMENT_CLICK_INTERCEPTED:<br/>            exception_class = ElementClickInterceptedException<br/>        elif status in ErrorCode.INSECURE_CERTIFICATE:<br/>            exception_class = InsecureCertificateException<br/>        elif status in ErrorCode.INVALID_COORDINATES:<br/>            exception_class = InvalidCoordinatesException<br/>        elif status in ErrorCode.INVALID_SESSION_ID:<br/>            exception_class = InvalidSessionIdException<br/>        elif status in ErrorCode.UNKNOWN_METHOD:<br/>            exception_class = UnknownMethodException<br/>        else:<br/>            exception_class = WebDriverException<br/>        if not value:<br/>            value = response[&quot;value&quot;]<br/>        if isinstance(value, str):<br/>            raise exception_class(value)<br/>        if message == &quot;&quot; and &quot;message&quot; in value:<br/>            message = value[&quot;message&quot;]<br/>    <br/>        screen = None  # type: ignore[assignment]<br/>        if &quot;screen&quot; in value:<br/>            screen = value[&quot;screen&quot;]<br/>    <br/>        stacktrace = None<br/>        st_value = value.get(&quot;stackTrace&quot;) or value.get(&quot;stacktrace&quot;)<br/>        if st_value:<br/>            if isinstance(st_value, str):<br/>                stacktrace = st_value.split(&quot;\n&quot;)<br/>            else:<br/>                stacktrace = []<br/>                try:<br/>                    for frame in st_value:<br/>                        line = frame.get(&quot;lineNumber&quot;, &quot;&quot;)<br/>                        file = frame.get(&quot;fileName&quot;, &quot;&lt;anonymous&gt;&quot;)<br/>                        if line:<br/>                            file = f&quot;{file}:{line}&quot;<br/>                        meth = frame.get(&quot;methodName&quot;, &quot;&lt;anonymous&gt;&quot;)<br/>                        if &quot;className&quot; in frame:<br/>                            meth = &quot;{}.{}&quot;.format(frame[&quot;className&quot;], meth)<br/>                        msg = &quot;    at %s (%s)&quot;<br/>                        msg = msg % (meth, file)<br/>                        stacktrace.append(msg)<br/>                except TypeError:<br/>                    pass<br/>        if exception_class == UnexpectedAlertPresentException:<br/>            alert_text = None<br/>            if &quot;data&quot; in value:<br/>                alert_text = value[&quot;data&quot;].get(&quot;text&quot;)<br/>            elif &quot;alert&quot; in value:<br/>                alert_text = value[&quot;alert&quot;].get(&quot;text&quot;)<br/>            raise exception_class(message, screen, stacktrace, alert_text)  # type: ignore[call-arg]  # mypy is not smart enough here<br/>&gt;       raise exception_class(message, screen, stacktrace)<br/><span class="error">E       selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {&quot;method&quot;:&quot;xpath&quot;,&quot;selector&quot;:&quot;//h3[text() = &quot;Epic sadface: Username is requir&quot;]&quot;}</span><br/><span class="error">E         (Session info: chrome=107.0.5304.110)</span><br/><span class="error">E       Stacktrace:</span><br/><span class="error">E       0   chromedriver                        0x000000010452aa88 chromedriver + 4123272</span><br/><span class="error">E       1   chromedriver                        0x00000001044b6778 chromedriver + 3647352</span><br/><span class="error">E       2   chromedriver                        0x0000000104178ac4 chromedriver + 248516</span><br/><span class="error">E       3   chromedriver                        0x00000001041aef68 chromedriver + 470888</span><br/><span class="error">E       4   chromedriver                        0x00000001041e1020 chromedriver + 675872</span><br/><span class="error">E       5   chromedriver                        0x00000001041a2b10 chromedriver + 420624</span><br/><span class="error">E       6   chromedriver                        0x00000001041a3c30 chromedriver + 425008</span><br/><span class="error">E       7   chromedriver                        0x00000001044fcae4 chromedriver + 3934948</span><br/><span class="error">E       8   chromedriver                        0x00000001044fff24 chromedriver + 3948324</span><br/><span class="error">E       9   chromedriver                        0x0000000104500508 chromedriver + 3949832</span><br/><span class="error">E       10  chromedriver                        0x0000000104506b30 chromedriver + 3975984</span><br/><span class="error">E       11  chromedriver                        0x0000000104500b24 chromedriver + 3951396</span><br/><span class="error">E       12  chromedriver                        0x00000001044db71c chromedriver + 3798812</span><br/><span class="error">E       13  chromedriver                        0x000000010451d2f0 chromedriver + 4068080</span><br/><span class="error">E       14  chromedriver                        0x000000010451d444 chromedriver + 4068420</span><br/><span class="error">E       15  chromedriver                        0x0000000104531450 chromedriver + 4150352</span><br/><span class="error">E       16  libsystem_pthread.dylib             0x00000001a13da06c _pthread_start + 148</span><br/><span class="error">E       17  libsystem_pthread.dylib             0x00000001a13d4e2c thread_start + 8</span><br/><br/>../../Library/Caches/pypoetry/virtualenvs/poetry-test-project-ic9f805P-py3.10/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py:249: NoSuchElementException<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">tests/test_it.py::test_login_page_with_empty_fields_2</td>
+          <td class="col-duration">0.07</td>
+          <td class="col-links"><a class="url" href="https://www.saucedemo.com/" target="_blank">URL</a> </td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="image"><a href="screens/screenshot-test_login_page_with_empty_fields_2.png"><img src="screens/screenshot-test_login_page_with_empty_fields_2.png"/></a></div>
+            <div class="log">b = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session=&quot;b93807c42c5583ec7121f754b1547c50&quot;)&gt;<br/><br/>    def test_login_page_with_empty_fields_2(b):<br/>        user_name = b.find_element(By.ID, &quot;user-name&quot;)<br/>        password = b.find_element(By.ID, &quot;password&quot;)<br/>&gt;       assert user_name.get_attribute(&quot;value&quot;) == &quot;2&quot;<br/><span class="error">E       AssertionError: assert &#x27;&#x27; == &#x27;2&#x27;</span><br/><span class="error">E         - 2</span><br/><br/>tests/test_it.py:25: AssertionError<br/> ----------------------------Captured stdout teardown---------------------------- <br/>
+---------Test ended-----------
+
+<br/></div></td></tr></tbody></table></body></html>
